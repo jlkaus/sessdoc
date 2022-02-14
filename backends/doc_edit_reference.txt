@@ -1,0 +1,150 @@
+<html>
+  <head>
+    <title>Document Editor</title>
+    
+    <style type="text/css">
+        @import "http://o.aolcdn.com/dojo/1.3/dijit/themes/tundra/tundra.css";
+        @import "http://o.aolcdn.com/dojo/1.3/dojo/resources/dojo.css";
+    </style>
+
+    <script type="text/javascript" src="http://o.aolcdn.com/dojo/1.3/dojo/dojo.xd.js" djConfig="parseOnLoad:true,isDebug:true"></script>
+    <script type="text/javascript"><!--
+      dojo.require("dojo.parser");
+      dojo.require("dijit.layout.ContentPane");
+      dojo.require("dijit.layout.TabContainer");
+      dojo.require("dijit.form.Button");
+      dojo.require("dijit.InlineEditBox");
+      dojo.require("dijit.form.TextBox");
+      dojo.require("dijit.Menu");
+
+      function parseHeaders(headerText)
+      {
+	var headers = {};
+	var ls = /^\s*/;
+	var ts = /\s*$/;
+	var lines = headerText.split("\n");
+	for(var i = 0;i< lines.length; ++i)
+	{
+	  var line = lines[i];
+	  if(line.length == 0) continue;
+	  var pos = line.indexOf(':');
+          var name = line.substring(0, pos).replace(ls,"").replace(ts,"").toLowerCase();
+	  var value = line.substring(pos+1).replace(ls,"").replace(ts,"");
+	  headers[name] = value;
+	}
+	return headers;
+      }
+
+      function parseStdStuff(revision)
+      {
+	var revdata = {};
+	var ls = /^\s*/;
+	var ts = /\s*$/;
+	var lq = /^"/;
+	var tq = /"$/;
+	var mode = 0;
+        var lastPos = 0;
+	var equalPos = 0;
+	var i = 0;
+	for(i = 0;i< revision.length; ++i)
+	{
+	  var c = revision.charAt(i);
+	  if(c == ";" && mode == 0)
+	  {
+	    if(equalPos == 0)
+	    {
+		revdata["revision"] = revision.substring(0, i).replace(ls,"").replace(ts,"").replace(lq,"").replace(tq,"");
+//		console.log("revision=",revdata["revision"]);
+	        equalPos = -1;
+	    }
+	    else
+	    {
+		var name = revision.substring(lastPos, equalPos).replace(ls,"").replace(ts,"").toLowerCase();
+		revdata[name] = revision.substring(equalPos+1,i).replace(ls,"").replace(ts,"").replace(lq,"").replace(tq,"");
+//		console.log(name,"=",revdata[name]);
+                equalPos = -1;
+	    }
+	    lastPos=i+1;
+	  }
+	  if(c == "=" && mode == 0)
+	  {
+	    equalPos = i;
+	  }
+	  if(c == "\"") 
+	  {
+	    if(mode == 0) {mode = 1;} else {mode = 0;}
+          }
+	}
+	if(equalPos == 0)
+	{
+	  revdata["revision"] = revision.substring(0, i).replace(ls,"").replace(ts,"").replace(lq,"").replace(tq,"");
+//	  console.log("revision=",revdata["revision"]);
+	}
+	else if(equalPos > 0)
+	{
+	  var name = revision.substring(lastPos, equalPos).replace(ls,"").replace(ts,"").toLowerCase();
+          revdata[name] = revision.substring(equalPos+1,i).replace(ls,"").replace(ts,"").replace(lq,"").replace(tq,"");	  
+//         console.log(name,"=",revdata[name]);
+	}
+
+	return revdata;
+      }
+
+      dojo.addOnLoad(function() 
+      {
+	dojo.xhr("GET",{
+		url: "/doc/test6",
+		load: function(response,ioArgs) {
+			 var sieheaden = parseHeaders(ioArgs.xhr.getAllResponseHeaders());
+			var latestrev = parseStdStuff(sieheaden["latest"]);
+			dojo.byId("content-document-1").innerHTML = response;
+			dojo.byId("author-document-1").innerHTML = latestrev["from"];
+			dojo.byId("date-document-1").innerHTML = latestrev["date"];
+			dojo.byId("title-document-1").innerHTML = latestrev["title"];
+			dojo.byId("type-document-1").innerHTML = sieheaden["content-type"];
+//			dijit.byId("document-1").title = "test6/"+latestrev["revision"];
+			console.log(dijit.byId("document-1"));
+			return response;
+		}});
+      });
+
+    --></script>
+  </head>
+  <body id="documentEditor" class="tundra" style="background-color:ivory;">
+    <div id="globalEditorAttributes" style="width:90%;margin-left:auto;margin-right:auto;margin-top:0.1cm;">
+      <div style="height:1.7em;">
+	And you are... [<span style="display:inline-block;max-width:200px;line-height:1.6em;"><span id="globalAuthor" dojoType="dijit.InlineEditBox" editor="dijit.form.TextBox">jlkaus</span></span>]
+      </div>
+      <div style="height:1.7em;">
+	and using... [<span style="display:inline-block;max-width:200px;line-height:1.6em;"><span id="globalRoot" dojoType="dijit.InlineEditBox" editor="dijit.form.TextBox">root-0</span></span>]
+      </div>
+    </div>
+
+    <div id="mainTabContainer" style="width:90%;height:87%;margin-left:auto;margin-right:auto;margin-bottom:4em;" dojoType="dijit.layout.TabContainer">
+      <div id="document-1" dojoType="dijit.layout.ContentPane" title="Document and Revision 1" closable="true" selected="true"> 
+	<!-- background color changes based on old/latest/changed -->
+	<div id="attributes-document-1" style="width:90%;margin-left:0.5cm;margin-top:0.5cm;margin-right:auto;margin-bottom:0.5cm;">
+	  <div style="width:100%;height:1.4em;font-size:3em;font-weight:bold;margin-top:0.25em;margin-bottom:0.1em;"><span id="title-document-1" dojoType="dijit.InlineEditBox" editor="dijit.form.TextBox">[title here]</span></div>
+	  <div>By: <span id="author-document-1">[author here]</span> on <span id="date-document-1">[date here]</span>.  Content-type: <span id="type-document-1">[type-here]</span></div>
+	</div>
+	<!-- this div needs to be made editable if its the latest version we know about -->
+	<div id="content-document-1" style="width:90%;height:75%;margin-left:0.5cm;margin-right:0.5cm;margin-bottom:0.5cm;background-color:black;color:white;padding:1em;font-size:8pt;font-family:Courier,monospace;white-space:pre;overflow:auto;"></div>
+      </div>
+    </div>
+
+    <div dojoType="dijit.Menu" targetNodeIds="document-1" style="display:none;"> 
+      <div dojoType="dijit.MenuItem">Set type</div> 
+      <div dojoType="dijit.MenuItem">Create branch</div> 
+      <div dojoType="dijit.MenuItem">Force save</div> 
+      <div dojoType="dijit.MenuItem">Get latest</div> 
+      <div dojoType="dijit.MenuItem">Merge with latest</div> 
+      <div dojoType="dijit.MenuItem">[Old revision]</div> 
+    </div> 
+
+    <div dojoType="dijit.Menu" targetNodeIds="documentEditor" style="display:none;"> 
+      <div dojoType="dijit.MenuItem">Create doc</div> 
+      <div dojoType="dijit.MenuItem">Load doc</div> 
+    </div>
+
+  </body>
+</html>

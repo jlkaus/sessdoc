@@ -1,0 +1,134 @@
+/* Here is the style information for the editor stuff */
+/* So our main divs are 
+
+body
+	menubar
+		menulist [open	save	close]
+	workspace
+		tabbar
+			tablist [tab1	tab2  tabS  tabN  tabE]
+		editspace
+
+
+Now, I need to figure out how to style them all.
+
+*/
+
+#menubar {	
+	float: left;
+	width: 150px;
+	background-color: #FFF;
+	
+}
+
+#menubar ul {
+	list-style-type: none;
+
+}
+
+#menulist li {
+	font-size: 12pt;
+	height: 20pt;	
+	color: #000;
+	background-color: #fff;
+	vertical-align: middle;
+	line-height: 20pt;
+	
+}
+
+#menulist li:hover {
+	font-size: 14pt;
+	background-color: #DD4;
+}
+
+#workspace {
+	float: left;
+	padding: 0;
+	overflow: hidden;
+}
+
+#tabbar {
+	float: left;
+	margin: 0;
+	padding: 0;
+	width:  100%;
+	overflow: hidden;
+}
+
+#tabbar ul {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	list-style-type: none;
+	overflow: hidden;
+}
+
+#tabbar li {
+	float: left;
+	margin: 0;
+	font-size: 12pt;
+	width: 150px; /* Tt */
+	height: 20pt;
+	border-bottom-style: solid;
+	border-left-style: solid;
+	border-right-style: solid;
+	border-top-style: solid;
+	border-color: #000;
+	border-width: 1px;
+	background-color: #FFF;
+	color: #000;
+	overflow: hidden;
+	text-align: center;
+	vertical-align: middle;
+	line-height: 20pt;
+}
+
+#tabbar li + li {
+	border-left-style: none;
+	border-right-style: solid;
+}
+
+#tabbar li:hover {
+	font-size: 14pt;
+	background-color: #DD4;	
+}
+
+li#selectedtab {
+	background-color: #EEE;
+	border-bottom-color: #EEE;
+	
+}
+
+li#selectedtab:hover {
+	border-bottom-color: #DD4;
+}
+
+li#endtab {
+	width: 800px;  /* Wt-Nt*(Tt+1) = 800-Nt*(151) */
+	border-right-color: #fff;
+	border-left-color: #fff;
+	border-top-color: #fff;
+	border-bottom-color: #000;
+	border-bottom-style: solid;	
+}
+
+li#endtab:hover {
+	border-bottom-color: #000;
+	background-color: #fff;
+}
+
+#editspace {
+	clear: both;
+	background-color: #EEE;
+	color: #44D;
+	width: 800px;  /* Wt */
+	height: 500px; /* Ht */
+	border-color: #000;
+	border-width: 1px;
+	border-left-style: solid;
+	border-right-style: solid;
+	border-bottom-style: solid;
+	font-family: monospace;
+	font-size: 12pt;
+	
+}

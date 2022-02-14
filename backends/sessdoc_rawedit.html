@@ -1,0 +1,325 @@
+<html>
+<head>
+<title>Raw sessdoc document editing interface</title>
+<script type="text/javascript" src="doc_edit_lib.js"></script>
+<script type="text/javascript" src="md5sum.js"></script>
+<script type="text/javascript">
+
+function testEnterKey(event,defaultId) {
+  if (event.keyCode == 13) {
+    event.cancelBubble = true;
+    event.returnValue = false;
+    document.getElementById(defaultId).click();
+  }
+}
+
+function docId(usenew) {
+  var msg = "";
+  if(usenew) {
+    var myD = new Date();
+    msg = myD.toString() + Math.random().toString();
+  } else {
+    document.lastUpdated = (new Date()).getTime();
+  }
+
+  msg+=document.getElementById("documenttitle").value
+    + document.getElementById("documentauthor").value
+    + document.getElementById("documenttype").value
+    + document.getElementById("documentbody").value;
+
+  return MD5(msg);
+}
+
+function thingsChanged(event) {
+  document.lastTyped = (new Date()).getTime();
+  if(document.loadingSd == 0) {
+    document.unsettled = 1;
+    var curdocsum = document.getElementById("curdocsum").innerHTML;
+    var olddocsum = document.getElementById("loaddocsum").innerHTML;
+    if(curdocsum == olddocsum) {
+      curdocsum = docId(0);
+    }
+    
+    document.getElementById("curdocsum").innerHTML = curdocsum;
+
+    if(curdocsum != olddocsum) {
+      document.bgColor = '#8080ff';
+    } else {
+      document.bgColor = document.loadColor;
+      document.unsettled = 0;
+    }
+  }
+}
+
+function secondly() {
+  if(document.loadingSd == 0) {
+  var curtime = (new Date()).getTime();
+
+  if(((curtime - document.lastTyped > 3000) && document.unsettled) ||
+     curtime - document.lastUpdated > 20000) {
+    curdocsum = docId(0);
+    document.getElementById("curdocsum").innerHTML = curdocsum;
+    if(curdocsum != document.getElementById("loaddocsum").innerHTML) {
+      document.bgColor = '#8080ff';
+      document.unsettled = 0;
+    } else {
+      document.bgColor = document.loadColor;
+      document.unsettled = 0;
+    }
+  }
+  }
+}
+
+function callback(req,rurl) {
+  if(req.readyState == 4) {
+    if(req.status == 200 || req.status == 201) {
+      document.loadColor = document.bgColor = '#80ff80';
+//      alert(req.getAllResponseHeaders());
+      var revstuff = parseStdStuff(req.getResponseHeader("Revision"));
+      var crestuff = parseStdStuff(req.getResponseHeader("Creation"));
+      var latstuff = parseStdStuff(req.getResponseHeader("Latest"));
+      document.getElementById("last-status").innerHTML = "Success: "+req.status+ " "+req.statusText;
+      document.getElementById("documentid").value = req.getResponseHeader("Content-location");
+      document.getElementById("documenttitle").value = req.getResponseHeader("Content-title");
+      document.getElementById("documenttype").value = req.getResponseHeader("Content-type");
+      document.getElementById("documentauthor").value = revstuff['from'];
+      document.getElementById("documentbody").value = req.responseText;
+      document.getElementById("branchtodocument").value = "";
+      document.getElementById("documentbranch").value = req.getResponseHeader("Branch-source");
+      document.getElementById("last-docid").innerHTML = req.getResponseHeader("Content-location");
+      document.getElementById("last-creation").innerHTML = req.getResponseHeader("Creation");
+      document.getElementById("last-revision").innerHTML = req.getResponseHeader("Revision");
+      document.getElementById("last-latest").innerHTML = req.getResponseHeader("Latest");
+      var docname = req.getResponseHeader("Content-location");
+      var slashspot = docname.indexOf('/');
+      document.getElementById("last-next").innerHTML = docname.substring(0,slashspot)+"/"+(parseInt(latstuff['revision'])+1);
+      document.getElementById("loaddocsum").innerHTML = docId(0);
+      document.getElementById("curdocsum").innerHTML = docId(0);
+      document.loadingSd = 0;
+      document.unsettled = 0;
+    } else {
+      document.loadColor = document.bgColor = '#ff8080';
+      document.getElementById("last-status").innerHTML = "Failed: "+req.status+" "+req.statusText;
+      document.getElementById("last-docid").innerHTML = "";
+      document.getElementById("last-creation").innerHTML = "";
+      document.getElementById("last-revision").innerHTML = "";
+      document.getElementById("last-latest").innerHTML = "";
+      document.getElementById("last-next").innerHTML = "";
+      document.getElementById("loaddocsum").innerHTML = docId(0);
+      document.getElementById("curdocsum").innerHTML = docId(0);
+      document.loadingSd = 0;
+      document.unsettled = 0;
+    }
+  }
+}
+
+function getdoc(gourl) {
+  if(document.loadingSd == 0) {
+  document.getElementById("last-status").innerHTML = "Retrieving document";
+  document.loadColor = document.bgColor = '#ffffff';
+  var req = new XMLHttpRequest();
+  var rurl = document.getElementById("documentid").value;
+  if(gourl) {
+    rurl = gourl;
+  }
+  req.open("GET","http://www.sessrumnir.net/doc/"+rurl,true);
+  req.onreadystatechange = function() { callback(req,rurl); }
+  document.loadingSd = 1;
+  req.send();
+  }
+}
+
+function putdoc(type) {
+  if(document.loadingSd == 0) {
+  document.getElementById("last-status").innerHTML = "Putting document";
+  document.loadColor = document.bgColor = '#ffffff';
+  var req = new XMLHttpRequest();
+  var rurl = document.getElementById("documentid").value;
+  if(type == 1) {
+    rurl = document.getElementById("last-next").innerHTML;
+  }
+  if(rurl == "") {
+    rurl = docId(1)+"/0";
+  }
+  req.open("PUT","http://www.sessrumnir.net/doc/"+rurl,true);
+  req.onreadystatechange = function() { callback(req,rurl); }
+  if(document.getElementById("documenttitle").value != "") {
+    req.setRequestHeader("Content-title",document.getElementById("documenttitle").value);
+  }
+  if(document.getElementById("documenttype").value != "") {
+    req.setRequestHeader("Content-type",document.getElementById("documenttype").value);
+  } else {
+    req.setRequestHeader("Content-type","text/plain");
+  }
+  if(document.getElementById("documentauthor").value != "") {
+    req.setRequestHeader("From",document.getElementById("documentauthor").value);
+  }
+  document.loadingSd = 1;
+  req.send(document.getElementById("documentbody").value);
+  }
+}
+
+function putbranch() {
+  if(document.loadingSd == 0) {
+  document.getElementById("last-status").innerHTML = "Branching document";
+  document.loadColor = document.bcColor = '#ffffff';
+  var req = new XMLHttpRequest();
+  var rurl = document.getElementById("branchtodocument").value;
+  if(rurl == "") {
+    rurl = docId(1)+"/0";
+  }
+  req.open("PUT","http://www.sessrumnir.net/doc/"+rurl,true);
+  req.onreadystatechange = function() { callback(req,rurl); }
+  if(document.getElementById("documenttitle").value != "") {
+    req.setRequestHeader("Content-title",document.getElementById("documenttitle").value);
+  }
+  if(document.getElementById("documentauthor").value != "") {
+    req.setRequestHeader("From",document.getElementById("documentauthor").value);
+  }
+  req.setRequestHeader("Branch-source",document.getElementById("documentid").value);
+  document.loadingSd = 1;
+  req.send();
+  }
+}
+
+function clearForm() {
+  if(document.loadingSd == 0) {
+  document.getElementById("last-status").innerHTML = "none";
+  document.loadColor = document.bgColor = '#ffffff';
+  document.getElementById("documentid").value = ""; 
+  document.getElementById("documenttitle").value = "";
+  document.getElementById("documenttype").value = "";
+  document.getElementById("documentauthor").value = "";
+  document.getElementById("documentbody").value = "";
+  document.getElementById("branchtodocument").value = "";
+  document.getElementById("documentbranch").value = "";
+  document.getElementById("last-docid").innerHTML = "";
+  document.getElementById("last-creation").innerHTML = "";
+  document.getElementById("last-revision").innerHTML = "";
+  document.getElementById("last-latest").innerHTML = "";
+  document.getElementById("last-next").innerHTML = "";
+  document.getElementById("loaddocsum").innerHTML = docId(0);
+  document.getElementById("curdocsum").innerHTML = docId(0);
+  document.lastTyped = (new Date()).getTime();
+  document.unsettled = 0;
+  }
+}
+
+function potentialTravel(event) {
+  if(event.button == 2) {
+    var docbody = document.getElementById("documentbody");
+    var selectstr = docbody.value.substring(docbody.selectionStart, docbody.selectionEnd);
+    var lookback = false;
+    var Ridr = new RegExp("^\\s*id:\\s*([-.\\w]+/\\d+)\\s*$");
+    var Rid = new RegExp("^\\s*id:\\s*([-.\\w]+)\\s*$");
+    var Rdr = new RegExp("^\\s*([-.\\w]+/[0-9]+)\\s*$");
+    var Rd = new RegExp("^\\s*([-.\\w]+)\\s*$");
+    var Ri = new RegExp("id:\\s*$"); 
+    var doctarget = "";
+    var result;
+    result = Ridr.exec(selectstr);
+    if(result){
+      doctarget = result[1];
+    } else {
+      result = Rid.exec(selectstr);
+      if(result) {
+        doctarget = result[1];
+      } else {
+        result = Rdr.exec(selectstr);
+	if(result) {
+	  doctarget = result[1];
+	  lookback=true;
+	} else {
+	  result = Rd.exec(selectstr);
+	  if(result) {
+	    doctarget = result[1];
+	    lookback=true;
+	  } else {
+	    return;
+	  }
+	}
+      }
+    }
+
+    if(lookback) {
+      var index = docbody.selectionStart-1;
+      for(;index > 0 && docbody.value.charAt(index) != '\n'; --index);
+      var potential = docbody.value.substring(index, docbody.selectionStart);
+      result = Ri.exec(potential);
+      if(result) {
+        
+      } else {
+        return;
+      }
+    }
+    
+    if(confirm("Discard current document and travel to: "+doctarget+" ?")) {
+      
+      getdoc(doctarget);
+      event.cancelBubble = true;
+      event.returnValue = false;
+    }
+  }
+}
+
+
+function setup() {
+  document.loadColor = '#ffffff';
+  document.getElementById("documentid").onkeypress = function(event) {testEnterKey(event,"getter");};
+  document.getElementById("branchtodocument").onkeypress = function(event) {testEnterKey(event,"brancher");};
+  document.getElementById("documentbody").addEventListener("contextmenu", potentialTravel, true);
+
+  document.getElementById("documentid").onkeyup = function(event) {thingsChanged(event);};  
+  document.getElementById("documenttitle").onkeyup = function(event) {thingsChanged(event);};  
+  document.getElementById("documentauthor").onkeyup = function(event) {thingsChanged(event);};  
+  document.getElementById("documenttype").onkeyup = function(event) {thingsChanged(event);};  
+  document.getElementById("documentbody").onkeyup = function(event) {thingsChanged(event);};  
+  document.getElementById("loaddocsum").innerHTML = docId(0);
+  document.getElementById("curdocsum").innerHTML = docId(0);
+
+  document.loadingSd = 0;
+  document.unsettled = 0;
+  setInterval(secondly,1000);
+}
+
+</script>
+
+</head>
+<body onload="setup();">
+
+<form>
+<p>Document: 
+<input type="text" id="documentid" size="40" value="" tabindex="1" /> 
+<input type="button" id="getter" value="Get" onclick="getdoc();" /> 
+<input type="button" id="putter" value="Put" onclick="putdoc(0);" /> 
+<input type="button" id="putnexter" value="Put Next" onclick="putdoc(1);" /> 
+<input type="button" id="clearer" value="Clear" onclick="clearForm();" /> 
+<input type="button" id="brancher" value="Branch to:" onclick="putbranch();" /> 
+<input type="text" id="branchtodocument" size="40" value="" />
+<br />Title: <input type="text" id="documenttitle" size="40" value="" tabindex="2" />
+ Branched from: <input type="text" id="documentbranch" size="40" readonly="true" value="" />
+<br />Author: <input type="text" id="documentauthor" size="40" value="" tabindex="3" />
+ Type: <input type="text" id="documenttype" size="40" value="" tabindex="4" /></p>
+<p><textarea cols="120" rows="25" id="documentbody" tabindex="5" ></textarea>
+<br /><span id="loaddocsum"></span> --> <span id="curdocsum"></span></p>
+</form>
+<p>Status of last action: <span id="last-status">none</span>
+<br />
+Document: <span id="last-docid"></span><br />
+Creation: 
+<span id="last-creation"></span> 
+<br />
+Revision: 
+<span id="last-revision"></span> 
+<br />
+Latest: 
+<span id="last-latest"></span> 
+<br />
+Next:
+<span id="last-next"></span>
+</p>
+
+
+</body>
+</html>
+

@@ -1,0 +1,117 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML ();
+use LWP::UserAgent;
+use Getopt::Long qw(:config gnu_compat);
+
+our $default_repository = "http://www.sessrumnir.net:80/doc";
+
+our $ERC_SUCCESS = 0;  #200/201
+our $ERC_NOT_FOUND = 79;  #404
+our $ERC_NOT_ALLOWED = 77;  #409
+our $ERC_BAD_REQUEST = 65;  #400
+our $ERC_USAGE_ERROR = 64;
+our $ERC_CONFIG_ERROR = 78;
+our $ERC_HOST_UNREACHABLE = 69;  #500
+our $ERC_UNKNOWN_FAILURE = 1;
+
+my %opts = ();
+GetOptions(\%opts, "type=s","title=s","author=s","noheaders","headers","verbose","body","nobody");
+
+my $showrsphead = 0;
+my $showrspbody = 0;
+my $showerrmsgs = 0;
+$showrsphead = 1 if($opts{headers});
+$showrspbody = 1 if($opts{body});
+$showerrmsgs = 1 if($opts{verbose});
+
+my $docrev = shift @ARGV;
+#my $newdoc = shift @ARGV;
+
+if(!$docrev) {
+	print STDERR "No document specified\n" if $showerrmsgs;
+	exit($ERC_USAGE_ERROR);
+}
+
+my $userconfig;
+my $siteconfig;
+
+if(exists $ENV{HOME} && -r "$ENV{HOME}/.sessdoc") {
+    $userconfig = YAML::LoadFile("$ENV{HOME}/.sessdoc");
+}
+
+my $etclook = exists $ENV{SITE} ? $ENV{SITE} : "";
+if(-r "${etclook}/etc/sessdoc.conf") {
+    $siteconfig = YAML::LoadFile("${etclook}/etc/sessdoc.conf");
+}
+
+my $uname = $ENV{USER};
+my $hname = `/bin/hostname`;
+chomp $hname;
+
+#print "$default_repository\n";
+#print "${uname}\@${hname}\n";
+#print "$docrev\n";
+#print "$_: $opts{$_}\n" foreach keys %opts;
+#print "$_: $userconfig->{$_}\n" foreach keys %$userconfig;
+#print "$_: $siteconfig->{$_}\n" foreach keys %$siteconfig;
+
+my $repo = $userconfig->{Repository} || $siteconfig->{Repository} || $default_repository;
+$repo =~ s/\/$//;
+
+my $type = $opts{type} || "text/plain";
+my $title = $opts{title};
+my $author = $opts{author} || $userconfig->{Author} || "${uname}\@${hname}";
+
+my $body = "";
+while($_=<STDIN>) {
+	$body.=$_;
+}
+
+my $ua = LWP::UserAgent->new;
+$ua->agent("sessdocput/0.1");
+
+# Create a request
+my $req = HTTP::Request->new(PUT => $repo."/".$docrev);
+$req->header('Content-type' => $type);
+$req->header('Content-title' => $title) if($title);
+$req->header('From' => $author);
+$req->content($body);
+
+# Pass request to the user agent and get a response back
+my $res = $ua->request($req);
+
+if($res->code == 500) {
+	print STDERR "Host unreachable or other server error\n" if $showerrmsgs;
+	exit($ERC_HOST_UNREACHABLE);
+} elsif($res->code == 409) {
+	print STDERR "Request not allowed\n" if $showerrmsgs;
+	exit($ERC_NOT_ALLOWED);
+} elsif($res->code == 404) {
+	print STDERR "Document not found\n" if $showerrmsgs;
+	exit($ERC_NOT_FOUND);
+} elsif($res->code == 400) {
+	print STDERR "Bad request\n" if $showerrmsgs;
+	exit($ERC_BAD_REQUEST);
+} elsif($res->code == 201) {
+	if($showrsphead) {
+		print $res->headers->as_string;
+	}
+	if($showrsphead && $showrspbody) {
+		print "\n";
+	}
+	if($showrspbody) {
+		print $res->content;
+	}
+	exit($ERC_SUCCESS);
+}
+
+print STDERR $res->headers->as_string if ($showrsphead && $showerrmsgs);
+print STDERR "\n" if($showrsphead && $showrspbody && $showerrmsgs);
+print STDERR $res->content if ($showrspbody && $showerrmsgs);
+
+print STDERR "Unknown http return code ".$res->code."\n" if $showerrmsgs;
+exit($ERC_UNKNOWN_FAILURE);
+

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+  <head>
+    <title>Document Editor</title>
+
+    <style type="text/css">
+        @import "http://o.aolcdn.com/dojo/1.3/dijit/themes/tundra/tundra.css";
+        @import "http://o.aolcdn.com/dojo/1.3/dojo/resources/dojo.css";
+	@import "backends/doc_edit.css";
+    </style>
+
+    <script type="text/javascript">
+      djConfig = 
+      {
+      isDebug: true
+      };
+    </script>
+    <script type="text/javascript" src="http://o.aolcdn.com/dojo/1.3/dojo/dojo.xd.js"></script>
+    <script type="text/javascript" src="backends/doc_edit_lib.js"></script>
+    <script type="text/javascript" src="backends/doc_edit.js"></script>
+
+  </head>
+
+  <body id="documentEditor" class="tundra">
+  
+    <div id="globalEditorAttributes">
+      <div>And you are... [<span><span id="globalAuthor"></span></span>]</div>
+      <div>and using... [<span><span id="globalRoot"></span></span>]</div>
+    </div>
+
+    <div id="mainTabContainer">
+    </div>
+
+  </body>
+</html>
+
